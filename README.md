@@ -1,2 +1,2 @@
-# Kumo
-Kumo bot for discord
+# Yuna
+Yuna bot for discord
