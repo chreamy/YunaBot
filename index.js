@@ -10,6 +10,7 @@ const { getGuildSettings } = require("./util/guild");
 const serviceManager = require("./service");
 const { processTokenMessage } = require("./util/tokenDetector");
 const { processRaidMessage } = require("./util/raidNotifier");
+const { processTrenchesMessage } = require("./util/trenchesNotifier");
 
 let defaultPrefix = "!";
 
@@ -145,6 +146,17 @@ client.on("ready", async () => {
 client.on("messageCreate", async (message) => {
     if (!message.guild) return;
     if (message.author === client.user) return;
+
+    // Isolated Yuzo Trenches notification feature.
+    // Rick is checked here before the existing bot guard so successful CA scans
+    // can notify the opt-in Trenches role without exposing bot messages to the
+    // rest of Yuna's normal message processing.
+    try {
+        await processTrenchesMessage(message);
+    } catch (error) {
+        console.error("[TrenchesNotifier] Unexpected error:", error);
+    }
+
     if (message.author.bot) return;
 
     // Isolated Yuzo raid notification feature.
