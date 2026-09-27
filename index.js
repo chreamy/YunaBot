@@ -9,6 +9,7 @@ const { client } = require("./util/client");
 const { getGuildSettings } = require("./util/guild");
 const serviceManager = require("./service");
 const { processTokenMessage } = require("./util/tokenDetector");
+const { processRaidMessage } = require("./util/raidNotifier");
 
 let defaultPrefix = "!";
 
@@ -145,6 +146,14 @@ client.on("messageCreate", async (message) => {
     if (!message.guild) return;
     if (message.author === client.user) return;
     if (message.author.bot) return;
+
+    // Isolated Yuzo raid notification feature.
+    // Errors here must never interrupt the bot's existing message processing.
+    try {
+        await processRaidMessage(message);
+    } catch (error) {
+        console.error("[RaidNotifier] Unexpected error:", error);
+    }
 
     // Get guild settings from database
     const guildSettings = await getGuildSettings(message.guild.id);
