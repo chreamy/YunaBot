@@ -11,6 +11,7 @@ const serviceManager = require("./service");
 const { processTokenMessage } = require("./util/tokenDetector");
 const { processRaidMessage } = require("./util/raidNotifier");
 const { processTrenchesMessage } = require("./util/trenchesNotifier");
+const { processTranslationMessage } = require("./util/translationBridge");
 
 let defaultPrefix = "!";
 
@@ -158,6 +159,13 @@ client.on("messageCreate", async (message) => {
     }
 
     if (message.author.bot) return;
+
+    // Isolated Yuzo English/Chinese translation bridge.
+    // Run independently so translation delays or provider failures never block
+    // the bot's existing message processing.
+    processTranslationMessage(message).catch((error) => {
+        console.error("[TranslationBridge] Unexpected error:", error);
+    });
 
     // Isolated Yuzo raid notification feature.
     // Errors here must never interrupt the bot's existing message processing.
