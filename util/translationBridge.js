@@ -166,6 +166,58 @@ async function translateMessageText(text, sourceLang, targetLang) {
     return translatedSegments.join(" ");
 }
 
+async function sendTranslatedWebhook(targetChannel, sourceMessage, translatedText) {
+    try {
+        if (!targetChannel?.isTextBased()) return false;
+
+        // Reuse Yuna's translation webhook when possible. If one does not
+        // exist yet, create it in the destination channel.
+        const webhooks = await targetChannel.fetchWebhooks();
+        let webhook = webhooks.find(
+            (candidate) =>
+                candidate.name === "Yuna Translation Bridge" &&
+                candidate.owner?.id === targetChannel.client.user?.id
+        );
+
+        if (!webhook) {
+            webhook = await targetChannel.createWebhook({
+                name: "Yuna Translation Bridge",
+                reason: "Yuna English/Chinese translation bridge",
+            });
+        }
+
+        const displayName =
+            sourceMessage.member?.displayName ||
+            sourceMessage.author?.globalName ||
+            sourceMessage.author?.username ||
+            "Discord User";
+
+        const avatarURL = sourceMessage.author?.displayAvatarURL({
+            extension: "png",
+            size: 128,
+        });
+
+        await webhook.send({
+            content: translatedText,
+            username: displayName.slice(0, 80),
+            avatarURL: avatarURL || undefined,
+            allowedMentions: {
+                parse: [],
+            },
+        });
+
+        return true;
+    } catch (error) {
+        // Fail silently in Discord. A webhook problem must never affect the
+        // original message or the rest of Yuna's message processing.
+        console.error(
+            "[TranslationBridge] Webhook delivery failed:",
+            error?.message || error
+        );
+        return false;
+    }
+}
+
 async function processTranslationMessage(message) {
     try {
         if (!message?.guild) return false;
@@ -211,14 +263,13 @@ async function processTranslationMessage(message) {
             return false;
         }
 
-        await targetChannel.send({
-            content: translatedText,
-            allowedMentions: {
-                parse: [],
-            },
-        });
+        const sent = await sendTranslatedWebhook(
+            targetChannel,
+            message,
+            translatedText
+        );
 
-        return true;
+        return sent;
     } catch (error) {
         console.error(
             "[TranslationBridge] Unexpected error:",
